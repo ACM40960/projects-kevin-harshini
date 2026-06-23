@@ -3,3 +3,8 @@
 data/raw/
 __pycache__/
 *.pyc
+.env
+.env
+*.env
+.env
+*.env
