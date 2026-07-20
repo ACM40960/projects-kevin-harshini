@@ -8,3 +8,20 @@ __pycache__/
 *.env
 .env
 *.env
+
+# Qdrant vector database
+qdrant_storage/
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# wandb
+wandb/
+
+# VS Code
+.vscode/
