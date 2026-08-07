@@ -25,58 +25,57 @@ def retrieve(
     top_k: int = 5,
     use_reranker: bool = True,
     stage1_k: int = 20,
+    max_retries: int = 2,
 ) -> List[dict]:
-    """
-    Two-stage retrieval: embedding search → cross-encoder reranking.
+    """Two-stage retrieval with automatic retry on transient Qdrant timeouts."""
 
-    Args:
-        query:        natural language question
-        model:        loaded BGE-large SentenceTransformer
-        client:       connected QdrantClient
-        ticker:       optional — filter to one company e.g. "AAPL"
-        top_k:        final chunks returned after reranking
-        use_reranker: False = Stage 1 only (faster, less accurate)
-        stage1_k:     candidates fetched before reranking
-    """
+    for attempt in range(max_retries + 1):
+        try:
+            query_vector = model.encode(
+                f"Represent this financial document for retrieval: {query}",
+                normalize_embeddings=True
+            ).tolist()
 
-    # ── Stage 1 — embedding similarity search ──
-    query_vector = model.encode(
-        f"Represent this financial document for retrieval: {query}",
-        normalize_embeddings=True
-    ).tolist()
+            search_filter = None
+            if ticker:
+                search_filter = Filter(must=[
+                    FieldCondition(key="ticker", match=MatchValue(value=ticker.upper()))
+                ])
 
-    search_filter = None
-    if ticker:
-        search_filter = Filter(must=[
-            FieldCondition(key="ticker", match=MatchValue(value=ticker.upper()))
-        ])
+            response = client.query_points(
+                collection_name=COLLECTION_NAME,
+                query=query_vector,
+                query_filter=search_filter,
+                limit=stage1_k if use_reranker else top_k,
+                with_payload=True,
+            )
 
-    response = client.query_points(
-        collection_name=COLLECTION_NAME,
-        query=query_vector,
-        query_filter=search_filter,
-        limit=stage1_k if use_reranker else top_k,
-        with_payload=True,
-    )
+            candidates = [
+                {
+                    "text":     hit.payload["text"],
+                    "citation": hit.payload["citation"],
+                    "score":    round(hit.score, 4),
+                    "ticker":   hit.payload["ticker"],
+                    "section":  hit.payload["section"],
+                    "year":     hit.payload["year"],
+                }
+                for hit in response.points
+            ]
 
-    candidates = [
-        {
-            "text":     hit.payload["text"],
-            "citation": hit.payload["citation"],
-            "score":    round(hit.score, 4),
-            "ticker":   hit.payload["ticker"],
-            "section":  hit.payload["section"],
-            "year":     hit.payload["year"],
-        }
-        for hit in response.points
-    ]
+            if not use_reranker:
+                return candidates
 
-    if not use_reranker:
-        return candidates
+            return rerank(query, candidates, top_k=top_k)
 
-    # ── Stage 2 — cross-encoder reranking ──
-    return rerank(query, candidates, top_k=top_k)
-
+        except Exception as e:
+            if attempt < max_retries:
+                console.print(
+                    f"[yellow]  ⚠ Qdrant query failed (attempt {attempt+1}), "
+                    f"retrying: {str(e)[:60]}[/yellow]"
+                )
+                continue
+            console.print(f"[red]  ✗ Qdrant query failed after {max_retries+1} attempts[/red]")
+            return []  # graceful degradation — empty result, not a crash
 
 def display_results(query: str, results: List[dict]) -> None:
     """Pretty-print retrieval results with both scores."""

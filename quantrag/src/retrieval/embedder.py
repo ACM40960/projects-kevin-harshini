@@ -50,32 +50,42 @@ def load_embedder() -> SentenceTransformer:
 
 def get_qdrant_client() -> QdrantClient:
     """Connect to local Qdrant instance."""
-    client = QdrantClient(url=QDRANT_URL)
+    client = QdrantClient(url=QDRANT_URL, timeout=120)
     console.print(f"[green]  ✓ Connected to Qdrant at {QDRANT_URL}[/green]")
     return client
 
 
-def ensure_collection(client: QdrantClient) -> None:
-    """
-    Create the Qdrant collection if it doesn't exist.
-    A collection is like a table — it stores vectors + metadata (payload).
-    We use cosine distance because BGE embeddings are normalised.
-    """
+def ensure_collection(client) -> None:
+    """Create the Qdrant collection and required payload indexes if missing."""
+    from qdrant_client.models import Distance, VectorParams, PayloadSchemaType
+
     existing = [c.name for c in client.get_collections().collections]
-    
+
     if COLLECTION_NAME not in existing:
         client.create_collection(
             collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(
-                size=VECTOR_DIM,
-                distance=Distance.COSINE   # cosine similarity for normalised vectors
-            )
+            vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
         )
         console.print(f"[green]  ✓ Created Qdrant collection: {COLLECTION_NAME}[/green]")
     else:
         console.print(f"[dim]  Collection already exists: {COLLECTION_NAME}[/dim]")
 
-
+    # Ensure filterable fields are indexed — required for query_points()
+    # to correctly combine vector search with payload filters.
+    for field, schema in [
+        ("ticker", PayloadSchemaType.KEYWORD),
+        ("year", PayloadSchemaType.INTEGER),
+        ("section", PayloadSchemaType.KEYWORD),
+    ]:
+        try:
+            client.create_payload_index(
+                collection_name=COLLECTION_NAME,
+                field_name=field,
+                field_schema=schema,
+            )
+        except Exception:
+            pass  # index already exists — safe to ignore
+        
 def embed_and_store(chunks: List[Chunk], 
                     model: SentenceTransformer,
                     client: QdrantClient,
