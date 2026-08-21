@@ -1,9 +1,3 @@
----
-editor_options: 
-  markdown: 
-    wrap: 72
----
-
 # QuantRAG
 
 ### Explainable AI-Driven Portfolio Optimisation via Retrieval-Augmented Black–Litterman
@@ -55,7 +49,7 @@ framework for investment decision support.
 
 ------------------------------------------------------------------------
 
-## The Problem {#the-problem}
+## The Problem
 
 Every quarter, over 10,000 SEC filings publish risk disclosures,
 management outlook, and competitive insights that price-based
@@ -68,7 +62,7 @@ quantitative models entirely ignore. LLMs can read this text, but:
 
 ------------------------------------------------------------------------
 
-## Motivation: Why Agentic RAG? {#motivation-why-agentic-rag}
+## Motivation: Why Agentic RAG?
 
 -   **Grounded, not memorised** - every recommendation traces back to
     retrieved SEC filing evidence
@@ -83,7 +77,7 @@ quantitative models entirely ignore. LLMs can read this text, but:
 
 ------------------------------------------------------------------------
 
-## Architecture {#architecture}
+## Architecture
 
 ### Stage A - Data Ingestion *(offline, one-time indexing)*
 
@@ -149,7 +143,7 @@ Portfolio Weights + Reasoning + Confidence + Citations → Final Report
 
 ------------------------------------------------------------------------
 
-## Novel Contributions {#novel-contributions}
+## Novel Contributions
 
 ### 1. RAG-Grounded Views
 
@@ -181,7 +175,7 @@ holding the optimiser and constraints fixed.
 
 ------------------------------------------------------------------------
 
-## Technology Stack {#technology-stack}
+## Technology Stack
 
 | Component | Technology |
 |------------------------------------|------------------------------------|
@@ -212,7 +206,7 @@ holding the optimiser and constraints fixed.
 
 ------------------------------------------------------------------------
 
-## Results {#results}
+## Results
 
 ### Faithfulness - FinanceBench Evaluation
 
@@ -262,7 +256,7 @@ are used.*
 
 ------------------------------------------------------------------------
 
-## Sample Portfolio Output {#sample-portfolio-output}
+## Sample Portfolio Output
 
 > **NVDA - 20.00%** · Neutral (+2.0%, confidence 62%) Strong financial
 > fundamentals, including 56.9% gross margins, \$5.64B operating cash
@@ -284,7 +278,7 @@ hallucinated.
 
 ------------------------------------------------------------------------
 
-## Key Insights {#key-insights}
+## Key Insights
 
 -   **3.6× higher faithfulness** - QuantRAG substantially outperforms an
     ungrounded LLM baseline on FinanceBench, showing retrieval grounding
@@ -304,7 +298,7 @@ hallucinated.
 
 ------------------------------------------------------------------------
 
-## Engineering Challenges {#engineering-challenges}
+## Engineering Challenges
 
 1.  **Non-standard SEC filing structures** - 38/503 companies (7.6%) use
     filing formats incompatible with standard section extraction;
@@ -322,7 +316,7 @@ hallucinated.
 
 ------------------------------------------------------------------------
 
-## Installation {#installation}
+## Installation
 
 ### Prerequisites
 
@@ -350,7 +344,7 @@ cp .env.example .env
 
 ------------------------------------------------------------------------
 
-## Usage {#usage}
+## Usage
 
 ### Build the index (first time only)
 
@@ -393,7 +387,7 @@ python app.py
 
 ------------------------------------------------------------------------
 
-## Project Structure {#project-structure}
+## Project Structure
 
 ```         
 quantrag/
@@ -414,7 +408,7 @@ quantrag/
 
 ------------------------------------------------------------------------
 
-## Future Work {#future-work}
+## Future Work
 
 1.  **Temporal granularity** - incorporate quarterly earnings
     transcripts for more timely views
@@ -429,7 +423,7 @@ quantrag/
 
 ------------------------------------------------------------------------
 
-## References {#references}
+## References
 
 1.  Lewis, P. et al. (2020). *Retrieval-Augmented Generation for
     Knowledge-Intensive NLP Tasks.* NeurIPS.
