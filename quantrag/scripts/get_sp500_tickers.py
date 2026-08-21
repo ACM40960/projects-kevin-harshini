@@ -1,8 +1,6 @@
 """
 Fetch the current S&P 500 constituent list.
 Tries three methods in order until one works.
-
-Run once:  python scripts/get_sp500_tickers.py
 """
 
 import os
@@ -17,14 +15,17 @@ def get_sp500_tickers() -> list:
     Try three sources for S&P 500 tickers in order:
     1. Wikipedia with browser User-Agent header (avoids 403)
     2. yfinance built-in S&P 500 list
-    3. Hardcoded reliable top-100 subset (guaranteed fallback)
+    3. Hardcoded reliable top-100 subset (fallback)
     """
 
-    # ── Method 1 — Wikipedia with proper headers ──────────────────
+    # Method 1 - Wikipedia with proper headers 
     try:
         import requests
 
         console.print("[blue]Trying Wikipedia with browser headers...[/blue]")
+
+        # Wikipedia blocks requests that don't look like a real browser
+        # pretending to be Chrome here avoids getting a 403 Forbidden
 
         headers = {
             "User-Agent": (
@@ -38,11 +39,16 @@ def get_sp500_tickers() -> list:
         resp = requests.get(url, headers=headers, timeout=15)
         resp.raise_for_status()
 
-        # Read HTML from the response text (not URL — avoids pandas 403)
+        # Read HTML from the response text (not URL - avoids pandas 403)
+        # pandas.read_html would re-fetch the URL itself (without our
+        # headers) if we passed it the URL directly, so we hand it the
+        # already-fetched, already-authenticated HTML text instead
         from io import StringIO
         tables  = pd.read_html(StringIO(resp.text))
         df      = tables[0]
         tickers = df["Symbol"].tolist()
+        # Wikipedia uses "." for tickers like BRK.B, but our whole
+        # pipeline (Qdrant, EDGAR, yfinance) expects "-" instead
         tickers = [t.replace(".", "-") for t in tickers]
         tickers = sorted(set(tickers))
 
@@ -54,7 +60,7 @@ def get_sp500_tickers() -> list:
     except Exception as e:
         console.print(f"[yellow]  ⚠ Wikipedia failed: {e}[/yellow]")
 
-    # ── Method 2 — yfinance S&P 500 download ──────────────────────
+    # Method 2 - yfinance S&P 500 download 
     try:
         import yfinance as yf
 
@@ -68,6 +74,8 @@ def get_sp500_tickers() -> list:
 
         # yfinance doesn't expose constituents directly —
         # use the S&P 500 components from a known ETF
+        # SPY (the S&P 500 ETF) holds all 500 constituents, so its
+        # holdings list doubles as an S&P 500 ticker list
         ticker_obj = yf.Ticker("SPY")
         holdings   = ticker_obj.get_holdings_full()
 
@@ -81,12 +89,15 @@ def get_sp500_tickers() -> list:
     except Exception as e:
         console.print(f"[yellow]  ⚠ yfinance failed: {e}[/yellow]")
 
-    # ── Method 3 — Hardcoded reliable S&P 500 list ────────────────
+    #Method 3 — Hardcoded reliable S&P 500 list
+    # last-resort fallback so this script NEVER fully fails - even if
+    # both live sources are down, we still get a usable, real ticker list
     console.print(
         "[blue]Using hardcoded S&P 500 list (reliable fallback)...[/blue]"
     )
 
     # Full S&P 500 as of 2024 — covers all 11 sectors
+    # grouped by sector here just for readability, not required by the code
     tickers = sorted([
         # Technology
         "AAPL","MSFT","NVDA","AVGO","ORCL","CRM","CSCO","IBM","INTC","AMD",
@@ -135,6 +146,9 @@ if __name__ == "__main__":
     tickers = get_sp500_tickers()
 
     # Save to file
+    # this file is what every other script in the project reads from —
+    # export_chunks.py, bulk_loader.py, etc. — so this run only needs
+    # to happen once, up front
     with open("data/sp500_tickers.txt", "w") as f:
         f.write("\n".join(tickers))
 

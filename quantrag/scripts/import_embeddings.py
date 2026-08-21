@@ -1,23 +1,20 @@
 """
-Phase 2 — Step 3 (LOCAL): Import Colab-embedded vectors into local Qdrant.
+Phase 2: Import Colab-embedded vectors into local Qdrant.
 
 Reads the .parquet shard files produced by quantrag_embed_colab.ipynb
 and bulk-upserts them into your LOCAL Qdrant (running in Docker, same
-as always). No embedding happens here — just fast bulk insertion of
-already-computed vectors.
+as always). No embedding happens here - just fast bulk insertion of
+already computed vectors.
 
 Setup before running:
     1. Download quantrag_embeddings.zip from Colab
     2. Unzip it into: data/embeddings_from_colab/
-       (should contain embeddings_part_0000.parquet, _0001.parquet, ...)
-
-Usage:
-    python scripts/import_embeddings.py
 """
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# ^ makes sure "src." imports work no matter which folder this script is actually run from
 import glob
 import pandas as pd
 from dotenv import load_dotenv
@@ -61,6 +58,10 @@ def import_shard(shard_path: str, client, collection: str) -> int:
     for _, row in df.iterrows():
         points.append(PointStruct(
             id=row["id"],
+            # Colab saved this as a plain list column in the parquet
+            # file — list(...) here just makes sure it's a real Python
+            # list, not some pandas-specific array type Qdrant might
+            # not accept directly
             vector=list(row["vector"]),
             payload={
                 "text":         row["text"],
@@ -76,6 +77,8 @@ def import_shard(shard_path: str, client, collection: str) -> int:
         ))
 
     # Upsert in batches — avoids one giant request for large shards
+    # (a shard can hold 20,000 rows; sending all of them in one HTTP
+    # request risks a timeout, so we send them 64 at a time instead)
     imported = 0
     for i in range(0, len(points), BATCH_SIZE):
         batch = points[i: i + BATCH_SIZE]
@@ -91,6 +94,9 @@ def run_import():
     shards = find_shards(INPUT_DIR)
 
     if not shards:
+        # fail loudly and helpfully rather than silently doing nothing —
+        # this is the most common "forgot a setup step" mistake, so the
+        # error message spells out exactly what to check
         console.print(
             f"[red]No shard files found in {INPUT_DIR}/[/red]\n"
             f"[dim]Expected files like: embeddings_part_0000.parquet[/dim]\n"
@@ -102,6 +108,8 @@ def run_import():
 
     client = get_qdrant_client()
     ensure_collection(client)
+    # ^ creates the collection (with the right payload indexes) if it
+    #   doesn't already exist — safe to call even if it already does
 
     total_imported = 0
 

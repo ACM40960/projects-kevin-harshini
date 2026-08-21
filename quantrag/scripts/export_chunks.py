@@ -1,21 +1,10 @@
 """
-Phase 2 — Step 1 (LOCAL): Export chunks for Colab embedding.
+Phase 2 - Exporting chunks for Colab embedding.
 
+Code Description : 
 Fetches all S&P 500 filings and chunks them EXACTLY like the local
 pipeline already does — but does NOT embed. Writes plain text chunks
 with metadata to a JSONL file that Colab will embed on GPU.
-
-This reuses your already-tested edgar_loader.py and chunker.py — the
-fetching and chunking logic does not change at all.
-
-Output: data/chunks_export/chunks.jsonl
-  One JSON object per line:
-    {"id": "...", "text": "...", "ticker": "...", "company_name": "...",
-     "year": 2023, "section": "risk_factors", "chunk_index": 5,
-     "total_chunks": 45, "filing_date": "2024-11-01", "citation": "..."}
-
-Usage:
-    python scripts/export_chunks.py
 """
 
 
@@ -42,7 +31,7 @@ load_dotenv()
 console = Console()
 
 YEARS         = [2020, 2021, 2022, 2023, 2024]
-FETCH_WORKERS = 8
+FETCH_WORKERS = 8  # how many companies we fetch at the same time (async)
 OUTPUT_DIR    = "data/chunks_export"
 OUTPUT_FILE   = os.path.join(OUTPUT_DIR, "chunks.jsonl")
 PROGRESS_LOG  = os.path.join(OUTPUT_DIR, "export_progress.json")
@@ -63,6 +52,8 @@ def load_progress() -> set:
 
 def save_progress(done: set) -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # write to a temp file first, then rename — avoids a half-written,
+    # corrupted progress file if the process dies mid-save
     tmp = PROGRESS_LOG + ".tmp"
     with open(tmp, "w") as f:
         json.dump([list(x) for x in done], f)
@@ -76,15 +67,10 @@ def save_failed(failed: list) -> None:
 
 
 def chunk_to_record(c: Chunk) -> dict:
-    """
-    Convert a Chunk to a JSON-serialisable dict with a DETERMINISTIC id.
-
-    The id is derived from the citation string (ticker+year+section+index),
-    so the same chunk always gets the same id whether exported today or
-    re-exported next week. This makes the whole pipeline idempotent —
-    Colab embeds it, local imports it, and re-runs never create duplicates.
-    """
+    #Convert a Chunk to a JSON-serialisable dict with a DETERMINISTIC id.
     citation = c.citation()
+    # same citation always produces the same id — so re-running this
+    # script (or re-importing later) never creates duplicate entries
     deterministic_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, citation))
 
     return {
@@ -102,9 +88,12 @@ def chunk_to_record(c: Chunk) -> dict:
 
 
 async def fetch_worker(work_queue, result_queue, semaphore):
+    # one of several workers pulling jobs off the shared queue and
+    # fetching them concurrently, instead of one company at a time
     while True:
         item = await work_queue.get()
         if item is None:
+            # None is our "no more work, shut down" signal for this worker
             work_queue.task_done()
             break
         ticker, year = item
@@ -116,6 +105,8 @@ async def fetch_worker(work_queue, result_queue, semaphore):
                     for k in ["risk_factors", "mda", "market_risk"]
                 )
                 if total < 500:
+                    # extraction basically failed (empty/near-empty sections) —
+                    # log it as a failure rather than storing junk chunks
                     await result_queue.put((ticker, year, [], "too_short"))
                 else:
                     chunks = await asyncio.to_thread(chunk_sections, sections)
@@ -134,6 +125,8 @@ async def run_export(tickers: List[str], years: List[int] = None, resume: bool =
     already_done = load_progress() if resume else set()
     failed       = []
 
+    # skip anything we've already successfully exported in a prior run
+
     work = [
         (t, y) for t in tickers for y in years
         if (t, y) not in already_done
@@ -150,8 +143,7 @@ async def run_export(tickers: List[str], years: List[int] = None, resume: bool =
     if not work:
         console.print("[green]All filings already exported[/green]")
         return
-
-    # Open in append mode — safe to resume
+    # "a" (append) mode — safe to resume, we never overwrite past chunks
     out_f = open(OUTPUT_FILE, "a", encoding="utf-8")
 
     work_queue   = asyncio.Queue()
@@ -192,10 +184,12 @@ async def run_export(tickers: List[str], years: List[int] = None, resume: bool =
                     record = chunk_to_record(c)
                     out_f.write(json.dumps(record) + "\n")
                     total_chunks_written += 1
-                out_f.flush()  # ensure data hits disk immediately — crash-safe
+                out_f.flush()  # ensure data hits disk immediately, crash-safe
 
                 already_done.add((ticker, year))
                 save_progress(already_done)
+                # saving progress after EVERY filing (not just at the end)
+                # is what makes this safe to interrupt at any point
                 console.print(
                     f"[green]  ✓ {ticker} {year}: {len(chunks)} chunks written[/green]"
                 )
