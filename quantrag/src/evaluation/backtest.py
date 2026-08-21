@@ -1,28 +1,5 @@
 """
 Phase 4 — Quarterly rebalancing backtest.
-
-Runs QuantRAG's real agent AND a price-momentum-only ablation across
-multiple quarters, with strict point-in-time discipline.
-
-CONSOLIDATED FIXES (this version):
-  1. Embedding model, Qdrant client, and Anthropic client are all loaded
-     ONCE at the start of run_backtest() and passed through — fixes the
-     repeated "MPS backend out of memory" crashes caused by reloading
-     BGE-large on every single fiscal-year view-generation call.
-  2. Disk-backed per-ticker view cache (VIEW_CACHE_FILE) — each ticker's
-     view is persisted to disk THE MOMENT it's computed, not just at the
-     end of processing all tickers for a fiscal year. If the process
-     crashes on ticker 13 of 20, tickers 1-12's views are safe and will
-     NOT be recomputed (and re-paid-for) on the next attempt.
-  3. Error messages widened from 80 to 200 characters so real failure
-     causes are visible instead of being truncated mid-sentence.
-  4. Uses the cost-efficient Haiku-based view extraction from the
-     updated src/agent/nodes.py.
-  5. NEW — hard API call safety guard (max_api_calls). Counts every
-     real Claude API call made during view generation and stops
-     cleanly with a clear message if the count exceeds the ceiling —
-     protects against any future caching regression silently burning
-     through credits again, undetected.
 """
 
 import os
@@ -89,9 +66,13 @@ class CountedAnthropicClient:
     def create(self, *args, **kwargs):
         self._counter.increment()
         return self._real_client.messages.create(*args, **kwargs)
+# Point in time filing year resolution
+# this decides which fiscal year's 10-K would actually have been
+# public knowledge by a given simulated date, so the backtest never
+# accidentally "sees the future"
 
 
-# ── Point-in-time filing year resolution ────────────────────────────────────
+# Point-in-time filing year resolution 
 
 def filing_year_available_at(quarter_date: pd.Timestamp) -> int:
     if quarter_date.month >= 4:
@@ -115,7 +96,9 @@ def estimate_max_api_calls(tickers: List[str], start: str, end: str, calls_per_t
     return len(tickers) * len(fiscal_years) * calls_per_ticker
 
 
-# ── Backtest checkpointing (quarter-level, weights) ─────────────────────────
+# Backtest checkpointing, quarter level, weights
+# this is what lets you stop and resume a multi hour backtest without
+# losing anything already computed
 
 def load_checkpoint() -> Dict[str, dict]:
     completed = {}
@@ -135,7 +118,7 @@ def append_checkpoint(row: dict) -> None:
         f.write(json.dumps(row, default=str) + "\n")
 
 
-# ── Disk-backed per-ticker view cache (fine-grained, crash-proof) ──────────
+#Disk-backed per-ticker view cache (fine-grained, crash-proof)
 
 def _load_disk_view_cache() -> dict:
     cache = {}
@@ -161,7 +144,7 @@ def _append_disk_view_cache(universe_key: str, fiscal_year: int, ticker: str, vi
         }) + "\n")
 
 
-# ── Market data ──────────────────────────────────────────────────────────────
+# Market data 
 
 def fetch_full_history(tickers: List[str], start: str, end: str) -> tuple:
     fetch_start = (pd.Timestamp(start) - pd.Timedelta(days=LOOKBACK_BUFFER_DAYS)).strftime("%Y-%m-%d")
@@ -211,7 +194,7 @@ def realised_return_between(price_history: pd.DataFrame, weights: Dict[str, floa
     return portfolio_return
 
 
-# ── View generation per fiscal year ──────────────────────────────────────────
+# View generation per fiscal year 
 
 _view_cache: Dict[tuple, List[dict]] = {}
 
@@ -219,14 +202,13 @@ _view_cache: Dict[tuple, List[dict]] = {}
 def get_quantrag_views_for_year(
     tickers: List[str], fiscal_year: int, model, qdrant_client, anthropic_client
 ) -> List[dict]:
-    """
-    anthropic_client here may be a CountedAnthropicClient wrapper —
-    _run_tool_loop calls .messages.create() exactly as before, unaware
-    of the wrapping, so no changes needed to nodes.py for counting to work.
-    """
+    
     universe_key = ",".join(sorted(tickers))
     cache_key = (tuple(sorted(tickers)), fiscal_year)
 
+    # in memory cache first, cheapest possible check, avoids even
+    # touching the disk cache if we already did this exact year in
+    # this exact run
     if cache_key in _view_cache:
         return _view_cache[cache_key]
 
@@ -279,7 +261,7 @@ neutral relative to the market over the following year?"""
     return views
 
 
-# ── Main backtest loop ──────────────────────────────────────────────────────
+#  Main backtest loop
 
 def run_backtest(
     tickers: List[str],
@@ -389,7 +371,7 @@ def run_backtest(
 
     console.print(f"\n[dim]Total Claude API calls made this run: {call_counter.count}[/dim]")
 
-    # Build equity curves — walk consecutive quarter pairs (no off-by-one)
+    # Build equity curves - walk consecutive quarter pairs (no off-by-one)
     quantrag_curve = {quarters[0]: 100.0}
     momentum_curve = {quarters[0]: 100.0}
 

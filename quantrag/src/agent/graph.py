@@ -13,8 +13,12 @@ from src.agent.nodes import (
 
 
 def build_agent_graph():
+    # StateGraph is just a map: nodes are stops, edges are arrows telling
+    # it where to go next. AgentState is the shared "clipboard" that gets
+    # passed from node to node, each one reading/writing to it.
     graph = StateGraph(AgentState)
 
+    # register each step — name it, then say which function runs there
     graph.add_node("retriever", node_retriever)
     graph.add_node("view_extractor", node_view_extractor)
     graph.add_node("optimizer", node_optimizer)
@@ -26,4 +30,5 @@ def build_agent_graph():
     graph.add_edge("optimizer", "report_generator")
     graph.add_edge("report_generator", END)
 
+    # compile() turns this map into something you can actually run
     return graph.compile()

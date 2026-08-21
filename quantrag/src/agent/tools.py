@@ -1,8 +1,8 @@
 """
-Phase 3 — Agent tools.
+Phase 3 - Agent tools.
 
 Two tools given to Claude in Node B:
-  1. get_financial_metric  — exact structured numbers (yfinance)
+  1. get_financial_metric  - exact structured numbers (yfinance)
   2. Filing evidence is provided directly as retrieved context,
      not as a callable tool (retrieval already happened in Node A)
 
@@ -33,7 +33,8 @@ def get_financial_metric(ticker: str, statement: str, year: int) -> dict:
     """
     try:
         t = yf.Ticker(ticker)
-
+        # map Claude's simple "income"/"balance"/"cashflow" choice to
+        # the actual yfinance property that returns that statement
         statement_map = {
             "income":   t.financials,
             "balance":  t.balance_sheet,
@@ -45,6 +46,8 @@ def get_financial_metric(ticker: str, statement: str, year: int) -> dict:
             return {"error": f"No {statement} statement data for {ticker}"}
 
         # yfinance columns are fiscal year-end Timestamps
+        # e.g. a column might literally be Timestamp('2023-09-30'),
+        # so we match on just the .year part of it
         matching_cols = [c for c in df.columns if c.year == year]
         if not matching_cols:
             available_years = sorted(set(c.year for c in df.columns))
@@ -59,10 +62,12 @@ def get_financial_metric(ticker: str, statement: str, year: int) -> dict:
         return {str(k): float(v) for k, v in result.items()}
 
     except Exception as e:
+        # never let a bad ticker/year crash the whole agent run - hand
+        # back a clean error message Claude can read and react to instead
         return {"error": f"Failed to fetch {statement} for {ticker}: {str(e)[:150]}"}
 
 
-# ── Tool schema for Claude tool-use ─────────────────────────────────────────
+# Tool schema for Claude tool-use 
 
 FINANCIAL_DATA_TOOL_SCHEMA = {
     "name": "get_financial_metric",

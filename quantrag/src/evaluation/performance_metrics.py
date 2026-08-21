@@ -1,13 +1,14 @@
 """
 Phase 4 — Portfolio performance metrics.
-Sharpe ratio, max drawdown, alpha, information ratio — computed
+Sharpe ratio, max drawdown, alpha, information ratio - computed
 the same way for any equity curve (QuantRAG, momentum, or SPY).
 """
 
 import numpy as np
 import pandas as pd
 
-
+# turns a running "portfolio value over time" series into the
+# actual percentage gain or loss for each individual period
 def compute_returns(equity_curve: pd.Series) -> pd.Series:
     """Period-over-period returns from a cumulative equity curve."""
     return equity_curve.pct_change().dropna()
@@ -18,6 +19,8 @@ def sharpe_ratio(returns: pd.Series, periods_per_year: int = 4, risk_free_rate: 
     Annualised Sharpe ratio. periods_per_year=4 for quarterly rebalancing.
     risk_free_rate is annual (e.g. 0.02 = 2%).
     """
+    # guard against dividing by zero if returns never moved at all,
+    # or if there's not even enough data to compute a spread
     if returns.std() == 0 or len(returns) < 2:
         return 0.0
     period_rf = risk_free_rate / periods_per_year
@@ -73,6 +76,9 @@ def full_report(equity_curve: pd.Series, benchmark_curve: pd.Series = None, labe
         "max_drawdown": max_drawdown(equity_curve),
     }
 
+    # alpha and information ratio only make sense if we actually have
+    # something to compare against, so they only get computed when a
+    # benchmark curve (like SPY) was passed in
     if benchmark_curve is not None:
         bench_returns = compute_returns(benchmark_curve)
         report["alpha"] = alpha_vs_benchmark(returns, bench_returns)

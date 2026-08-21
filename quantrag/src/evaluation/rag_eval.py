@@ -39,10 +39,15 @@ TICKER_LOOKUP_CACHE = "logs/ticker_company_lookup.json"
 EVAL_CHECKPOINT_FILE = "logs/eval_checkpoint.jsonl"   # one JSON line per completed question
 
 
-# ── Ticker resolution — generic, no hardcoding ─────────────────────────────
+# Ticker resolution, generic, no hardcoding
+# FinanceBench only gives us a company name like "3M", but our own
+# database only knows tickers like "MMM", these functions bridge
+# that gap without ever hardcoding a single company name
 
 def normalize_company_name(name: str) -> str:
     """Strip legal-entity suffixes/punctuation so naming conventions align."""
+    # this makes "3M COMPANY" and "3M" collapse down to the same
+    # cleaned up string, so they can be matched as the same company
     name = name.upper()
     name = re.sub(r'/[A-Z]+/', '', name)
     name = re.sub(r'[.,&\'"]', '', name)
@@ -107,7 +112,7 @@ def company_to_ticker(company_name: str, lookup: dict) -> str:
     return lookup[match[0]] if match else ""
 
 
-# ── FinanceBench loading ────────────────────────────────────────────────────
+#FinanceBench loading
 
 def load_financebench(num_samples: int, client) -> List[Dict]:
     console.print("[blue]Loading FinanceBench dataset...[/blue]")
@@ -159,8 +164,10 @@ ANSWER:"""
     return answer, [r["text"] for r in results]
 
 
-# ── Custom LLM-as-judge metrics ─────────────────────────────────────────────
-
+# Custom LLM-as-judge metrics
+# these replace the ragas library, which turned out to be too unstable
+# to rely on, same underlying scoring ideas, just implemented directly
+# with simple prompts to our own already-working LLM function
 def _extract_score(raw: str) -> Optional[float]:
     match = re.search(r'([01](?:\.\d+)?)', raw.strip())
     if match:
@@ -282,7 +289,7 @@ def average_valid(values: List) -> float:
     return round(sum(valid) / len(valid), 4) if valid else 0.0
 
 
-# ── Checkpoint helpers — resumable evaluation ───────────────────────────────
+# Checkpoint helpers - resumable evaluation
 
 def load_checkpoint() -> Dict[int, dict]:
     """Load already-completed question results, keyed by question id."""
@@ -304,7 +311,7 @@ def append_checkpoint(row: dict) -> None:
         f.write(json.dumps(row) + "\n")
 
 
-# ── Main evaluation ──────────────────────────────────────────────────────────
+# Main evaluation
 
 async def run_evaluation_async(num_samples: int = 150, save_results: bool = True) -> Dict:
     console.print("\n[bold blue]Phase 2 — FinanceBench Evaluation (resumable)[/bold blue]")
@@ -359,7 +366,7 @@ async def run_evaluation_async(num_samples: int = 150, save_results: bool = True
                             "context_precision", "context_recall"]},
             })
 
-    # ── Aggregate all checkpointed results (this run + any prior runs) ──
+    #  Aggregate all checkpointed results (this run + any prior runs) ──
     all_results = load_checkpoint()
     all_scores = {
         "faithfulness": [], "answer_relevancy": [],

@@ -2,15 +2,15 @@
 Phase 3 — LangGraph agent nodes.
 
 Four nodes forming the QuantRAG pipeline:
-  A. Filing Retriever   — pulls cited evidence per ticker (Phase 2 retriever)
-  B. View Extractor      — Claude tool-use forms a structured view per ticker
-  C. Portfolio Optimiser — Black-Litterman turns views into weights
-  D. Report Generator    — assembles a readable, cited final report
+  A. Filing Retriever   - pulls cited evidence per ticker (Phase 2 retriever)
+  B. View Extractor      - Claude tool-use forms a structured view per ticker
+  C. Portfolio Optimiser - Black-Litterman turns views into weights
+  D. Report Generator    - assembles a readable, cited final report
 
 PHASE 4 COST-EFFICIENCY UPDATE:
   - Model switched from claude-sonnet-4-6 to claude-haiku-4-5-20251001
     for view extraction (~10x cheaper per token, sufficient quality for
-    this well-scoped, schema-constrained task — verify with spot checks
+    this well-scoped, schema-constrained task - verify with spot checks
     if reasoning depth ever seems insufficient)
   - Added a system-level reminder to fill ALL required tool fields on
     the first attempt, reducing wasted resubmission round-trips
@@ -35,10 +35,15 @@ console = Console()
 # Cost-efficient model for view extraction — well-scoped, schema-constrained
 # task where Haiku's quality is generally sufficient. ~10x cheaper than Sonnet.
 VIEW_EXTRACTION_MODEL = "claude-haiku-4-5-20251001"
+
+# used only as a backup when Haiku genuinely can't complete the schema —
+# see _run_tool_loop below
 FALLBACK_MODEL = "claude-sonnet-4-6"
 
 
 class AgentState(TypedDict, total=False):
+    # this is the shared "clipboard" passed between all 4 nodes — each
+    # node reads what it needs off it and writes its own result back on
     tickers: List[str]
     market_caps: Dict[str, float]
     price_history: object
@@ -48,7 +53,7 @@ class AgentState(TypedDict, total=False):
     report: str
 
 
-# ── Node A — Filing Retriever ──────────────────────────────────────────────
+# Node A — Filing Retriever
 
 def node_retriever(state: AgentState) -> AgentState:
     """For each ticker, retrieve top-5 cited passages on outlook/risk."""
@@ -58,6 +63,9 @@ def node_retriever(state: AgentState) -> AgentState:
     client = get_qdrant_client()
 
     evidence = {}
+    # same fixed query for every ticker — keeps the evidence basis
+    # consistent/comparable across companies rather than tailoring
+    # the search per company
     query = "business outlook, risk factors, and forward-looking guidance"
 
     for ticker in state["tickers"]:
@@ -68,7 +76,7 @@ def node_retriever(state: AgentState) -> AgentState:
     return {**state, "evidence": evidence}
 
 
-# ── Node B — View Extractor (Claude tool-use) ──────────────────────────────
+# Node B — View Extractor (Claude tool-use) 
 
 def node_view_extractor(state: AgentState) -> AgentState:
     """
@@ -228,12 +236,12 @@ def _run_tool_loop(client, ticker: str, messages: list, tools: list, max_turns: 
 
         return None
 
-    # Attempt 1 — primary model (Haiku, cheap)
+    # Attempt 1 -  primary model (Haiku, cheap)
     result = attempt(VIEW_EXTRACTION_MODEL, messages, max_turns)
     if result:
         return result
 
-    # Attempt 2 — fallback to Sonnet with a FRESH short conversation
+    # Attempt 2 -fallback to Sonnet with a FRESH short conversation
     # (fresh, not continuing the failed Haiku thread — avoids carrying
     # over any confusion from the exhausted attempt)
     console.print(
@@ -253,7 +261,7 @@ def _run_tool_loop(client, ticker: str, messages: list, tools: list, max_turns: 
     return None
 
 
-# ── Node C — Portfolio Optimiser ───────────────────────────────────────────
+#Node C - Portfolio Optimiser
 
 def node_optimizer(state: AgentState) -> AgentState:
     """Runs Black-Litterman using the extracted views."""

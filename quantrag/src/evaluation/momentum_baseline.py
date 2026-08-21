@@ -1,5 +1,5 @@
 """
-Phase 4 — Price-momentum baseline (the ablation).
+Phase 4 - Price-momentum baseline (the ablation).
 Generates views using ONLY price history — no LLM, no filings, no RAG.
 Everything else (Black-Litterman, optimizer, constraints) stays identical
 to QuantRAG's real pipeline, isolating the effect of RAG-grounded views.
@@ -17,7 +17,7 @@ def generate_momentum_views(
 ) -> List[Dict]:
     """
     For each ticker, compute trailing N-day momentum and convert it
-    directly into a view — same {ticker, magnitude, confidence} shape
+    directly into a view - same {ticker, magnitude, confidence} shape
     that Black-Litterman expects from the LLM pipeline, but derived
     purely from price arithmetic.
 
