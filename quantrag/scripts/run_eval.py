@@ -1,8 +1,5 @@
 """
 Phase 2 — Run FinanceBench RAGAS evaluation.
-
-Run after the index is built:
-    python scripts/run_eval.py
 """
 
 import sys
