@@ -218,7 +218,7 @@ holding the optimiser and constraints fixed.
 > retrieval grounding substantially reduces hallucination compared to an
 > ungrounded LLM answering from memory alone.
 
-![](quantrag/images/faithfullness.png){width="679"}
+![](quantrag/images/faithfullness.png)
 
 ------------------------------------------------------------------------
 
@@ -236,7 +236,7 @@ are used.*
 
 **Equity Curve (Base = 100):**
 
-![](quantrag/images/equity_curves.png){width="689"}
+![](quantrag/images/equity_curves.png)
 
 ### Robustness Check - Covariance Method Comparison
 
