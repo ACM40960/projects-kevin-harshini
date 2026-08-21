@@ -1,20 +1,6 @@
 """
 Phase 2 — Bulk ingestion of S&P 500 10-K filings.
 
-UNIVERSAL + CRASH-RESILIENT + PARALLEL-CAPABLE.
-
-Runs optimally on any machine, decided automatically by src/device.py:
-    CUDA GPU (Linux/Windows)  → parallel embedding, batch 128, fastest
-    Apple MPS (Mac)           → single-stream, batch 16, memory-safe
-    CPU (any OS / CI)         → parallel process pool, batch 32
-
-Design:
-  - Async concurrent fetching (parallel on all OS)
-  - Per-document checkpointing: fetch → embed → store → SAVE, one at a time
-  - A crash loses at most one filing; fully resumable
-  - Hardware-adaptive embedding via src/device.py
-  - Parallel embedding auto-enabled where safe (CUDA/CPU), off on MPS
-
 Override parallelism with the PARALLEL_MODE env var or the parameter:
   PARALLEL_MODE=auto   (default — recommended)
   PARALLEL_MODE=on     (force parallel, e.g. Windows GPU laptop)

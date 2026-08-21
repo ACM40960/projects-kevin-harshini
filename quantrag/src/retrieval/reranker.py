@@ -1,22 +1,5 @@
 """
 Phase 2 — Cross-encoder reranker with diversity filtering.
-
-Two-stage retrieval:
-  Stage 1 — embedding search (fast): top-20 candidates from Qdrant
-  Stage 2 — cross-encoder reranking (precise): top-N by relevance
-  Stage 3 — diversity filter: drop near-duplicate passages
-
-Why Stage 3 is needed:
-  Companies often reuse near-identical boilerplate language across
-  multiple years of filings (e.g. standard section-opening sentences
-  like "Information regarding new accounting pronouncements..."). A
-  ranker optimizing purely for relevance can return 5 near-copies of
-  the same generic sentence from different fiscal years instead of 5
-  genuinely diverse, informative passages.
-
-  This filter is fully generic — it works on ANY text from ANY company,
-  using simple Jaccard word-overlap similarity, not hardcoded company
-  or phrase knowledge.
 """
 
 from typing import List

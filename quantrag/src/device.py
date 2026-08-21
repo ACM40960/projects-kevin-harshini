@@ -5,12 +5,12 @@ Universal hardware detection for QuantRAG.
 Auto-selects the best available compute device on ANY machine and decides
 whether parallel embedding is safe on that hardware.
 
-    CUDA (NVIDIA GPU)  →  fastest — parallel embedding ON
-    MPS  (Apple GPU)   →  fast    — parallel embedding OFF (spawn unstable)
+    CUDA (NVIDIA GPU)  →  fastest - parallel embedding ON
+    MPS  (Apple GPU)   →  fast    - parallel embedding OFF (spawn unstable)
     CPU                →  universal fallback — parallel via process pool
 
 The same codebase runs optimally on a cloud GPU, a MacBook, a Windows GPU
-laptop, or a CPU-only CI runner — no code changes needed.
+laptop, or a CPU-only CI runner - no code changes needed.
 """
 
 import os
@@ -25,12 +25,14 @@ def get_optimal_device() -> str:
     Returns one of: "cuda" | "mps" | "cpu"
     """
     import torch
+    # NVIDIA GPU is checked first since it's the fastest option when available
 
     if torch.cuda.is_available():
         name = torch.cuda.get_device_name(0)
         console.print(f"[green]  ✓ Using CUDA GPU: {name}[/green]")
         return "cuda"
-
+    
+    # Apple's own GPU support, only relevant on a Mac with Apple Silicon
     if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         console.print("[green]  ✓ Using Apple MPS (Metal GPU)[/green]")
         return "mps"

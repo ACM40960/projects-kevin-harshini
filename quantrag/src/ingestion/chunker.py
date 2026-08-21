@@ -2,7 +2,6 @@
 Phase 1 — Section-aware chunker.
 Splits each 10-K section into overlapping chunks
 with metadata attached to every chunk.
-This is what makes our RAG section-aware, not just token-count-aware.
 """
 
 from dataclasses import dataclass

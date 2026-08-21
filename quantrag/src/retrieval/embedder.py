@@ -2,12 +2,6 @@
 Phase 1 — Embedding + Qdrant storage.
 Loads BGE-large-en-v1.5 (runs locally, no API needed)
 and stores chunk vectors in Qdrant with metadata.
-
-Why BGE-large?
-- 1024-dimensional vectors (richer than OpenAI ada-002's 1536 but more efficient)
-- Specifically trained on financial and technical English
-- Free, runs on CPU (slow but works), much faster on GPU
-- Top of MTEB benchmark for retrieval tasks as of 2024
 """
 
 import os
@@ -91,21 +85,12 @@ def embed_and_store(chunks: List[Chunk],
                     client: QdrantClient,
                     batch_size: int = 32) -> int:
     """
-    Embed each chunk and store it in Qdrant with its metadata as payload.
+    Embeding each chunk and store it in Qdrant with its metadata as payload.
     
-    The payload (metadata) stored alongside each vector lets us:
+    The payload stored alongside each vector lets us:
     - Filter searches by ticker, year, or section
     - Return citations with every retrieved chunk
     - Reconstruct the original passage for the LLM
-    
-    Args:
-        chunks:     List of Chunk objects from the chunker
-        model:      Loaded SentenceTransformer model
-        client:     Connected QdrantClient
-        batch_size: Number of chunks to embed at once (higher = faster if GPU)
-    
-    Returns:
-        Number of points stored
     """
     ensure_collection(client)
     
@@ -124,14 +109,14 @@ def embed_and_store(chunks: List[Chunk],
         prefixed = [f"Represent this financial document for retrieval: {t}" 
                     for t in texts]
         
-        # Embed — returns numpy array of shape (batch_size, 1024)
+        # Embed -- returns numpy array of shape (batch_size, 1024)
         vectors = model.encode(
             prefixed,
             normalize_embeddings=True,   # cosine similarity needs normalised vectors
             show_progress_bar=False
         )
         
-        # Build Qdrant points — each point = vector + payload (metadata)
+        # Build Qdrant points - each point = vector + payload (metadata)
         for chunk, vector in zip(batch, vectors):
             point = PointStruct(
                 id=str(uuid.uuid4()),    # unique ID for this chunk
@@ -151,7 +136,7 @@ def embed_and_store(chunks: List[Chunk],
             )
             points.append(point)
     
-    # Upload all points to Qdrant
+    # Uploading all points to Qdrant
     client.upsert(
         collection_name=COLLECTION_NAME,
         points=points

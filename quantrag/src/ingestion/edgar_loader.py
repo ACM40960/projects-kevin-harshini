@@ -119,7 +119,7 @@ def extract_section(full_text: str, section_key: str) -> str:
     if stop_match:
         end = start + 100 + stop_match.start()
     else:
-        end = start + 80000   # fallback — take up to 80K chars
+        end = start + 80000   # fallback - take up to 80K chars
 
     return clean_text(full_text[start:end])
 
