@@ -1,9 +1,3 @@
----
-editor_options: 
-  markdown: 
-    wrap: 72
----
-
 # QuantRAG
 
 ### Explainable AI-Driven Portfolio Optimisation via Retrieval-Augmented Black–Litterman
