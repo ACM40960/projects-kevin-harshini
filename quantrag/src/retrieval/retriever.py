@@ -75,7 +75,7 @@ def retrieve(
                 )
                 continue
             console.print(f"[red]  ✗ Qdrant query failed after {max_retries+1} attempts[/red]")
-            return []  # graceful degradation — empty result, not a crash
+            return []  # graceful degradation - empty result, not a crash
 
 def display_results(query: str, results: List[dict]) -> None:
     """Pretty-print retrieval results with both scores."""

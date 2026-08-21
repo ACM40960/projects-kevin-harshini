@@ -1,0 +1,30 @@
+{
+  "timestamp": "20260812_141924",
+  "covariance_method": "ledoit_wolf",
+  "total_api_calls": 0,
+  "quantrag": {
+    "label": "QuantRAG",
+    "total_return": 1.1363120387229175,
+    "annualised_return": 0.22436408989942547,
+    "sharpe_ratio": 1.0632967653263345,
+    "max_drawdown": -0.22418105605742944,
+    "alpha": 0.026988117574137445,
+    "information_ratio": 0.42665251155999817
+  },
+  "momentum": {
+    "label": "Momentum Baseline",
+    "total_return": 1.1552892506050494,
+    "annualised_return": 0.22725501872055331,
+    "sharpe_ratio": 1.0822198366659195,
+    "max_drawdown": -0.22016479402274813,
+    "alpha": 0.029209210036167447,
+    "information_ratio": 0.4392079014077224
+  },
+  "spy": {
+    "label": "SPY Benchmark",
+    "total_return": 0.9523539696115106,
+    "annualised_return": 0.19531476087020594,
+    "sharpe_ratio": 0.9841008495482444,
+    "max_drawdown": -0.23927171999585076
+  }
+}
